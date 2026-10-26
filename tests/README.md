@@ -1,0 +1,1 @@
+Verificar CRUD, busca textual, entradas inválidas, recursos inexistentes, erros globais e contrato OpenAPI. Registrar comandos e resultados reais.
