@@ -6,12 +6,24 @@
 *.key
 *.pfx
 *.p12
+application-local.properties
+application-local.yaml
+application-local.yml
+*.local.properties
+*.local.yaml
+*.local.yml
+
 # IDE / SO
 .vscode/
 .idea/
 .vs/
+*.iml
+.project
+.classpath
+.settings/
 .DS_Store
 Thumbs.db
+
 # Build / dependências
 bin/
 obj/
@@ -19,6 +31,10 @@ target/
 build/
 .dart_tool/
 node_modules/
-# Arquivos temporários
+.mvn/timing.properties
+
+# Arquivos temporários e logs
 *.log
 *.tmp
+hs_err_pid*
+replay_pid*
