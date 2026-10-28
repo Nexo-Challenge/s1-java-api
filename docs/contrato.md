@@ -2,7 +2,7 @@
 
 Status: proposto, não aprovado.
 
-- Entidade e atributos: a definir.
+- Entidades e relacionamento N:N aplicação–impacto: ver [contrato de domínio v1](entidades-mvp.md). Atributos e regras físicas propostos para revisão Java/banco.
 - DTOs e validações: a definir.
 - Endpoints, parâmetros, códigos e respostas: a definir.
 - Persistência e relação com modelo Oracle: a definir.
