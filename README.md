@@ -22,7 +22,7 @@ Proposta, público-alvo e recorte funcional ainda precisam ser aprovados. Não i
 Ver [checklist de entrega](docs/requisitos-sprint-1.md).
 
 ## Arquitetura e contratos
-A definir conforme o recorte aprovado. Não foram selecionadas versões, ambientes ou fornecedores adicionais. Registrar acordos entre áreas e vínculos com outros repositórios antes de implementar.
+Ver [entidades e relacionamentos do MVP](docs/entidades-mvp.md): orientação para Kenji, relação N:N aplicação–impacto, dicionário proposto e pendências de revisão Java/banco. Documento exclusivo do entregável FIAP; o modelo físico e os contratos de implementação ainda dependem de acordo entre as áreas.
 
 ## Execução e testes
 Ainda não há aplicação/scripts executáveis nesta preparação. Substituir esta seção por pré-requisitos, versões, comandos reproduzíveis, configuração sem segredos, dados de teste e resultados reais quando a implementação existir.
