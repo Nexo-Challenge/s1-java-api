@@ -1,11 +1,76 @@
-# Contrato Java / banco / mobile
+# Contrato esperado pelo Java — consultas e revisão do banco
 
-Status: proposto, não aprovado.
+## Origem, comparação e status
 
-- Entidades e relacionamento N:N aplicação–impacto: ver [contrato de domínio v1](entidades-mvp.md). Atributos e regras físicas propostos para revisão Java/banco.
-- DTOs e validações: a definir.
-- Endpoints, parâmetros, códigos e respostas: a definir.
-- Persistência e relação com modelo Oracle: a definir.
-- Responsáveis e aprovação das áreas afetadas: pendentes.
+Origem principal: `Nexo-Challenge/s1-database`, `docs/entidades-mvp.md`, consultado via `gh api` somente para leitura em 01/11/2026; blob `b8c7a180c3939c21e3ab434d61edff3df44784bd`.
+O remoto já registra o dicionário fechado, associação com dados próprios, PK composta e ausência de cascata. Este documento **não substitui nem altera o contrato publicado por Kenji**. Alisson responde por Java/.NET; Kenji pelo banco. Os novos detalhes locais de API, nomes ainda não especificados e estratégia de IDs estão **propostos para revisão de Kenji**, sem alegação de aceite.
+A cópia local `entidades-mvp.md` é anterior ao remoto e não deve prevalecer sobre ele; não foi sincronizada nesta tarefa.
 
-Mobile pode usar mocks na Sprint 1; integração não é obrigatória.
+### Comparação campo a campo antes de novos ajustes
+
+`NULL` abaixo descreve o mapeamento Java atual. Ausência de obrigatoriedade explícita no remoto não prova aceite dessa nulabilidade. Tipos SQL são os esperados pelo documento de origem, não resultado de inspeção de banco real. Java usa `Long` para IDs e `String` para texto; nenhuma entidade define `schema` ou DDL via `columnDefinition`.
+
+| Entidade / tabela publicada | Campo Java → coluna mapeada | Tipo / comprimento | Java aceita NULL? | PK, FK e UNIQUE | Comparação com remoto |
+| --- | --- | --- | --- | --- | --- |
+| AreaAplicacao / TB_AREA_APLICACAO | id → id | Long; NUMBER no remoto | Não | PK | Alinhado; precisão/escala e geração pendentes |
+| AreaAplicacao / TB_AREA_APLICACAO | nome → nome | String / VARCHAR2(100) | Não | UNIQUE | Alinhado: nome obrigatório e exclusivo |
+| AreaAplicacao / TB_AREA_APLICACAO | descricao → descricao | String / VARCHAR2(1000) | Sim | Nenhuma | Tamanho alinhado; nulabilidade final confirmar |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | id → id | Long; tipo físico não detalhado para esta linha no remoto | Não | PK | Identidade alinhada; tipo/precisão/geração confirmar |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | areaAplicacao → areaAplicacaoId | Long da área | Não | FK → TB_AREA_APLICACAO.id; não UNIQUE | Remoto chama o atributo areaAplicacaoId, sem fixar a coluna física. **Por orientação explícita do solicitante, Java adota agora areaAplicacaoId literalmente**, sem alegar comprovação de DDL |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | titulo → titulo | String / VARCHAR2(150) | Sim | Não UNIQUE | Nome/tamanho alinhados; remoto atual não exige NOT NULL |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | resumo → resumo | String / VARCHAR2(500) | Sim | Nenhuma | Nome/tamanho alinhados; remoto atual não exige NOT NULL |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | descricao → descricao | String / VARCHAR2(4000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | id → id | Long; tipo físico não detalhado para esta linha no remoto | Não | PK | Identidade alinhada; tipo/precisão/geração confirmar |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | titulo → titulo | String / VARCHAR2(150) | Sim | UNIQUE | Nome/tamanho/unicidade alinhados; NOT NULL não explicitado no remoto atual |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | descricao → descricao | String / VARCHAR2(1000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.aplicacaoId; aplicacao → aplicacao_id | Long; tipo SQL compatível com PK referenciada, a confirmar | Não | Parte da PK e FK → TB_APLICACAO_NUCLEAR.id | Nome físico explícito no remoto; alinhado |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.impactoId; impacto → impacto_id | Long; tipo SQL compatível com PK referenciada, a confirmar | Não | Parte da PK e FK → TB_IMPACTO_SOCIAL.id | Nome físico explícito no remoto; alinhado |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | explicacao → explicacao | String / VARCHAR2(2000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | fonteUrl → fonte_url | String / VARCHAR2(500) | Sim | Nenhuma | Remoto usa fonteUrl no dicionário e fonte_url na descrição da associação; mapeamento alinhado |
+
+O nome area_aplicacao_id da implementação Java anterior era inferido e não consta no contrato remoto. Por orientação explícita do solicitante, foi substituído por areaAplicacaoId, grafia literal do atributo publicado. Como o remoto não contém DDL, essa adoção não é confirmação de coluna física Oracle. A estratégia PhysicalNamingStrategyStandardImpl preserva nomes explícitos, sem quoted identifiers: no teste SQL H2 executado a coluna observada foi AREAAPLICACAOID, não AREA_APLICACAO_ID. aplicacao_id, impacto_id e fonte_url permanecem conforme nomes físicos expressos no texto remoto. Nomes físicos de constraints, schema/proprietário, precisão de NUMBER e semântica BYTE/CHAR de VARCHAR2 também não foram definidos. Não inventar essas decisões.
+
+## Identidade, relacionamentos e integridade
+
+- IDs simples são atribuídos manualmente pelo código chamador; **não há @GeneratedValue, sequence, identity ou trigger acordados**. Para consultas não é necessário gerar IDs. A estratégia de futuras escritas depende do banco.
+- `AplicacaoImpactoId` é `@Embeddable`, serializável, com igualdade/hash pelo par. `AplicacaoImpacto.id` usa `@EmbeddedId`; `@MapsId("aplicacaoId")` e `@MapsId("impactoId")` ligam os pais à mesma chave. O par é único como PK; cada FK isolada pode repetir. Não existe ID substituto.
+- Área 1 → 0..N aplicações; cada aplicação referencia uma área obrigatória. Aplicação e impacto 1 → 0..N vínculos; cada vínculo referencia exatamente um de cada. Isso resolve N:N, sem coleções bidirecionais no Java.
+- Todas as relações são N:1 `LAZY`, `optional=false`, FK `nullable=false`, sem cascata JPA. Não há soft delete nem orphan removal. O contrato publicado exige impedir exclusões de pais referenciados; a anotação Java não comprova a constraint física existente. A expressão `ON DELETE RESTRICT` do documento descreve a política; não constitui DDL Oracle executável aqui.
+- Não acrescentamos validações de escrita ou NOT NULL diferentes dos models existentes. UNIQUE e tratamento de NULL, caixa, acentos e comprimento precisam de validação Oracle autorizada; H2 não certifica essas semânticas.
+
+## Novos termos locais da API — revisão pendente
+
+Somente leitura de `AplicacaoNuclear`, com `AplicacaoNuclearRepository` expondo apenas consultas. Não foram adicionados repositórios sem consumidor para outras entidades.
+
+- `GET /api/aplicacoes?page=0&size=20&titulo=nuclear`: lista paginada, ordenação fixa `id ASC`. `page` inteiro ≥ 0; `size` inteiro entre 1 e 100. Valores padrão 0 e 20. Não há ordenação arbitrária pelo cliente.
+- `titulo` opcional: ausente, vazio ou somente espaços lista tudo; caso contrário `trim()` e Query Method `findByTituloContainingIgnoreCase`. Busca por trecho ignorando caixa, com `%`/`_` tratados como literais pelo Spring Data. Não há promessa de remover acentos ou equivalência de collation Oracle/H2.
+- Página além do fim ou filtro sem resultados: HTTP 200, `content: []`, mantendo os metadados. Ordenação por PK estabiliza resultados de um conjunto fixo, não fornece snapshot entre requisições concorrentes.
+- `GET /api/aplicacoes/{id}`: ID Long existente retorna HTTP 200; inexistente, 404. ID não numérico/fora de Long ou paginação inválida: 400. IDs negativos não recebem nova regra de domínio: se inexistentes, 404.
+- DTO aplicação: `id`, `titulo`, `resumo`, `descricao`, `area: {id, nome, descricao}`. Textos opcionais podem ser nulos. **Impactos e vínculos ficam fora desta resposta inicial.** Entidades/proxies JPA nunca são retornados pelo controller.
+- DTO página: `content`, `page`, `size`, `totalElements`, `totalPages`. Não depende do formato de serialização de `PageImpl`.
+- Erros MVC/ausência usam `application/problem+json` (RFC 9457): `type`, `title`, `status`, `detail`, `instance`. `ResponseEntityExceptionHandler` trata exceções MVC reconhecidas; não existe captura genérica convertendo falha de banco em lista vazia ou sucesso. Falhas inesperadas permanecem falhas; mensagem/stacktrace não são expostos pela configuração de erro padrão.
+- Serviço `@Transactional(readOnly=true)` materializa DTOs dentro da transação. Entity graph carrega apenas a relação para uma área: nenhuma coleção é carregada com paginação. `readOnly` não substitui permissões de leitura no banco.
+- Não há POST/PUT/DELETE, autenticação/autorização, Swagger, chamadas de procedures ou functions TABLE nesta etapa. Não expor publicamente como API de produção sem revisão de segurança.
+
+## Configuração e limites de execução
+
+Base: `ddl-auto=none`, `spring.sql.init.mode=never`, `open-in-view=false`. Perfil `oracle`: URL/usuário/senha exclusivamente em `ORACLE_JDBC_URL`, `ORACLE_USERNAME`, `ORACLE_PASSWORD`, sem defaults; driver Oracle e `ddl-auto=validate`. Nenhuma criação/alteração/seed é executada pela configuração versionada. Overrides externos devem ser revisados antes de executar; `validate` não certifica todas as constraints.
+
+**Configurar não significa testar conexão. Nenhuma conexão Oracle foi iniciada.** Nenhum DDL, migration, seed, credencial ou dado real foi usado. Testes de contexto usam destino `jdbc:h2:mem:nexo_test_<UUID>` fixado por `@DynamicPropertySource`, usuário/senha de teste explícitos, perfil `test`, dialeto H2 e `create-drop` exclusivamente no código de teste. Não executar testes com overrides externos de pool, inicialização ou migração.
+
+## Pendências acadêmicas e de revisão
+
+Fonte oficial: `2TDS Agosto - Marinha 2026 - 1º Semestre .pdf`. Conforme leitura do PDF registrada pelo solicitante, banco exige procedures INSERT/UPDATE/DELETE por tabela, functions TABLE e integração das chamadas via API, com **10 registros por tabela**. O remoto ainda menciona cinco; sinalizamos a divergência sem editar o documento de Kenji. As amostras sintéticas de teste não cumprem essa carga acadêmica.
+Java ainda precisa completar CRUD JPA, validações de escrita, exceções correspondentes e Swagger. A escolha remota de `AplicacaoNuclear` como principal da PoC .NET coincide com o recorte Java; alinhar entregáveis com Alisson/Kenji sem reescrever o domínio ou implementar .NET aqui.
+
+Revisão pendente: comprovar no DDL a coluna de área adotada literalmente como areaAplicacaoId; schema e tipos numéricos; semântica de tamanhos e nulabilidade; estratégia de IDs; permissões somente leitura; assinaturas/retornos/erros/transações das procedures/functions; compatibilidade Oracle real; aceite dos novos DTOs e endpoints. Esta preparação não conclui a entrega da Sprint.
+
+## Referências técnicas consultadas
+
+- Spring Data JPA, Query Methods e EntityGraph: `https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html`
+- Spring MVC, validação: `https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html`
+- Spring MVC, respostas de erro: `https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html`
+- Spring Boot, inicialização de banco: `https://docs.spring.io/spring-boot/how-to/data-initialization.html`
+- Spring Test, precedência das propriedades dinâmicas: `https://docs.spring.io/spring-framework/reference/testing/testcontext-framework/ctx-management/dynamic-property-sources.html`
+
+APIs verificadas adicionalmente por compilação e testes com Spring Boot 4.1.2 do POM, sem atualizar versões.

@@ -1,0 +1,14 @@
+# Somente configuração. Nenhuma conexão Oracle foi testada.
+spring:
+  datasource:
+    url: ${ORACLE_JDBC_URL}
+    username: ${ORACLE_USERNAME}
+    password: ${ORACLE_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  sql:
+    init:
+      mode: never

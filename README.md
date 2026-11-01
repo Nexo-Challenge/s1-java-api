@@ -1,34 +1,89 @@
 # s1-java-api
 
-## Finalidade
-**FIAP — Sprint 1 — Java Advanced.** Challenge 2026, tecnologia nuclear / Marinha. Este repositório é um entregável acadêmico; reutilização no produto real deve ser explicitamente acordada.
+**FIAP — Sprint 1 — Java Advanced.** Challenge 2026, tecnologia nuclear / Marinha. Entregável acadêmico; reutilização no produto real exige acordo.
 
-**Estado: estrutura documental inicial. Não há implementação funcional, testes executados ou entrega concluída.**
+## Estado e responsáveis
+
+Consultas Java implementadas e testadas com H2 isolado: listagem paginada, busca por ID e filtro por título. **Não é CRUD completo nem entrega concluída. Nenhuma conexão Oracle foi testada.**
+Alisson responde por Java/.NET; Kenji pelo banco. A revisão dos novos termos locais de integração está pendente. Nenhum nome completo ou RM é publicado aqui.
 
 ## Fonte e prazo
-Fonte: `2TDS Agosto - Marinha 2026 - 1º Semestre V2.pdf`, seção **Java Advanced 1/4–4/4**, fornecido pelo grupo. O PDF original não foi republicado.
 
-O documento diverge: seção Entregas indica **01/11/2026**, Cronograma indica **até 02/11/2026**. Confirmar data e horário no portal/professor; nenhuma das datas foi validada como definitiva. Documentar eventuais instruções atualizadas do portal.
+Fonte oficial: `2TDS Agosto - Marinha 2026 - 1º Semestre .pdf`, seção Java Advanced. O PDF não foi republicado.
+O documento diverge: Entregas indica 01/11/2026; Cronograma, até 02/11/2026. Confirmar data/horário no portal ou com professor; não tratamos nenhuma como definitiva.
 
-## Equipe e responsabilidade
-- Responsável principal: a confirmar.
-- Revisor: a confirmar.
-- Integrantes, nomes, RMs e turma: preencher pelo grupo após conferência e autorização para publicação. Nenhum dado pessoal foi presumido.
+## Contrato e arquitetura
 
-## Solução e escopo
-Proposta, público-alvo e recorte funcional ainda precisam ser aprovados. Não interpretar exemplos como requisitos adicionais.
+Controller → serviço transacional somente leitura → repository Spring Data JPA. DTOs não expõem entidades/proxies. Área carregada por EntityGraph N:1, sem coleção com paginação e sem open-in-view.
 
-## Requisitos da disciplina
-Ver [checklist de entrega](docs/requisitos-sprint-1.md).
+Ver [contrato esperado pelo Java](docs/contrato.md) para comparação campo a campo com o contrato **já publicado** em `Nexo-Challenge/s1-database/docs/entidades-mvp.md`, comprimentos, nulabilidade, PK/FK/UNIQUE, IDs manuais, erros e pendências. A cópia local [entidades-mvp.md](docs/entidades-mvp.md) é anterior e não substitui o remoto. Nenhum documento de Kenji foi alterado.
 
-## Arquitetura e contratos
-Ver [entidades e relacionamentos do MVP](docs/entidades-mvp.md): orientação para Kenji, relação N:N aplicação–impacto, dicionário proposto e pendências de revisão Java/banco. Documento exclusivo do entregável FIAP; o modelo físico e os contratos de implementação ainda dependem de acordo entre as áreas.
+A FK de área adota literalmente `areaAplicacaoId` conforme orientação do solicitante, em vez do nome antes inferido `area_aplicacao_id`. A estratégia física padrão preserva esse nome sem aspas; teste SQL H2 confirma `AREAAPLICACAOID`. Falta comprovação em DDL Oracle. `aplicacao_id`, `impacto_id` e `fonte_url` seguem o texto remoto.
 
-## Execução e testes
-Ainda não há aplicação/scripts executáveis nesta preparação. Substituir esta seção por pré-requisitos, versões, comandos reproduzíveis, configuração sem segredos, dados de teste e resultados reais quando a implementação existir.
+## Testes e compilação seguros
 
-## Evidências e entrega
-Os itens permanecem pendentes até verificação. Conferir formato exigido, links acessíveis ao professor e identidade do grupo. Não registrar tokens ou credenciais em vídeos, prints ou arquivos.
+POM: Java release 21 e Spring Boot 4.1.2, sem atualização de versões. Execução verificada: JDK 24.0.2, Maven Wrapper 3.9.11, Windows. Única correção de dependência: escopo inválido `annotationProcessor` do Lombok → `provided`.
 
-## Contribuição
-Ver [CONTRIBUTING.md](CONTRIBUTING.md). Equipes, donos nominais, CODEOWNERS, proteção de branches, CI e permissões não foram configurados.
+No terminal Windows, dentro do repositório (em Git Bash, prefixar com `cmd.exe /c`):
+
+```bat
+mvnw.cmd -o -Dtest=ModelContractTest,AplicacaoImpactoIdTest,AplicacaoConsultaTest,AplicacaoConsultaServiceTest test
+mvnw.cmd -o test
+mvnw.cmd -o compile
+```
+
+O modo offline requer dependências previamente disponíveis. Testes de contexto, inclusive `NexoApiApplicationTests`, herdam `IsolatedDatabaseTest`: perfil `test`, URL exclusiva `jdbc:h2:mem:nexo_test_<UUID>`, driver/dialeto H2 e credenciais sintéticas definidos por propriedades dinâmicas, sem interpolar variáveis externas. `create-drop` aparece somente nesse código de teste. Não forneça overrides externos de pool, scripts ou migração. Os testes não abrem porta HTTP: usam MockMvc e dados sintéticos com rollback.
+
+Resultado real da suíte após alinhamento do nome físico:
+
+```text
+Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+Cobertura: models/chave composta preservados, filtro Query Method real, ordenação/paginação, limites 1/100 e inválidos, DTO com área, 400/404 estruturados, rejeição de POST, falha de banco propagada, DTO após transação e coluna SQL literal. Isso não comprova dialeto/constraints/credenciais/procedures Oracle nem carga acadêmica.
+
+`mvnw.cmd -o package` também foi tentado: compilou e passou os testes, mas falhou no `spring-boot:repackage` por dependências do plugin não resolvíveis no cache offline (por exemplo `spring-boot-buildpack-platform:4.1.2`). Um JAR simples foi gerado, mas **não há JAR executável verificado**. Não foram alterados cache, versões ou repositórios para contornar o bloqueio. Para distribuir, resolver dependências em ambiente autorizado e repetir `package`. Há avisos do JDK 24 sobre Unsafe/Mockito/Byte Buddy e aviso de dialeto H2 explícito; não foram ocultados.
+
+## Configuração Oracle — não executar automaticamente
+
+Configuração preparada em `application-oracle.yaml`:
+
+```text
+SPRING_PROFILES_ACTIVE=oracle
+ORACLE_JDBC_URL=jdbc:oracle:thin:@//HOST_AUTORIZADO:1521/SERVICO_AUTORIZADO
+ORACLE_USERNAME=USUARIO_SOMENTE_LEITURA
+ORACLE_PASSWORD=SENHA_FORNECIDA_FORA_DO_REPOSITORIO
+```
+
+São placeholders, não credenciais funcionais. Configure no ambiente/gerenciador de segredos, nunca em arquivos versionados, chat ou histórico compartilhado. **Configurar não significa testar conexão.** Nenhum comando desta preparação iniciou a aplicação contra Oracle.
+
+Base: `ddl-auto=none`; Oracle: `ddl-auto=validate`; ambos com `spring.sql.init.mode=never` e `open-in-view=false`. Não há migrations/seeds. Antes de iniciar: obter autorização para o alvo, confirmar schema/contrato, permissões de leitura e variáveis efetivas, sem overrides que habilitem DDL. Após resolver o empacotamento, o comando abaixo é apenas orientação futura, não foi executado:
+
+```bat
+java -jar target/nexo-api-0.0.1-SNAPSHOT.jar --spring.profiles.active=oracle
+```
+
+Sem perfil/configuração/dados aprovados, não esperar demonstração funcional contra banco real; a base não cria tabelas nem popula H2 automaticamente.
+
+## Consultas HTTP
+
+Para instância autorizada já iniciada, exemplos de requisições (não executados contra Oracle):
+
+```http
+GET /api/aplicacoes?page=0&size=20
+GET /api/aplicacoes?titulo=nuclear&page=0&size=10
+GET /api/aplicacoes/10
+```
+
+Ordenação fixa `id ASC`; page ≥ 0; size 1..100. Filtro opcional por trecho ignorando caixa; vazio lista tudo. DTO: `id`, `titulo`, `resumo`, `descricao`, `area {id, nome, descricao}`. Resposta paginada: `content`, `page`, `size`, `totalElements`, `totalPages`. Impactos não entram nesta resposta inicial. Ausência: 404; parâmetros inválidos: 400, com ProblemDetail.
+
+## Pendências de entrega
+
+- CRUD JPA completo, validações de escrita, exceções correspondentes e Swagger/OpenAPI.
+- Procedures INSERT/UPDATE/DELETE por tabela, functions TABLE e chamadas via API, com **10 registros por tabela**, conforme PDF informado. O contrato remoto ainda menciona cinco: divergência sinalizada, não alterada.
+- Validar Oracle em ambiente autorizado e estratégia de geração dos IDs; não há sequence presumida.
+- Alinhar a PoC .NET, cujo principal remoto também é `AplicacaoNuclear`, sem mudar domínio por suposição.
+- Revisão de autenticação/autorização antes de exposição pública; esta etapa não implementa segurança de produção.
+
+O [checklist preexistente](docs/requisitos-sprint-1.md) não substitui o PDF oficial. Evidências acadêmicas, integração e revisão continuam pendentes. Ver [CONTRIBUTING.md](CONTRIBUTING.md); nenhuma branch, commit, push, sincronização, permissão ou configuração GitHub foi realizada.
