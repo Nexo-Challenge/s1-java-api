@@ -2,15 +2,18 @@ package br.com.nexo.api.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** IDs atribuídos explicitamente até o acordo sobre a estratégia de geração no banco. */
+/** ID gerado pelo banco com IDENTITY, conforme acordo relatado pelo solicitante. */
 @Entity
 @Table(name = "TB_AREA_APLICACAO")
 public class AreaAplicacao {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 

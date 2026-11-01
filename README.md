@@ -4,8 +4,8 @@
 
 ## Estado e responsáveis
 
-Consultas Java implementadas e testadas com H2 isolado: listagem paginada, busca por ID e filtro por título. **Não é CRUD completo nem entrega concluída. Nenhuma conexão Oracle foi testada.**
-Alisson responde por Java/.NET; Kenji pelo banco. A revisão dos novos termos locais de integração está pendente. Nenhum nome completo ou RM é publicado aqui.
+CRUD completo de `AplicacaoNuclear` e consultas de `AreaAplicacao` implementados e testados com H2 isolado: criação com cabeçalho Location, listagem paginada, busca por ID, filtro por título via Query Method, atualização total idempotente e exclusão com proteção de integridade referencial. **Nenhuma conexão Oracle foi testada.**
+Alisson responde por Java/.NET; Kenji pelo banco. O solicitante confirmou acordo com Kenji para IDs simples por IDENTITY; a revisão dos demais novos termos locais de integração está pendente. Nenhum nome completo ou RM é publicado aqui.
 
 ## Fonte e prazo
 
@@ -16,9 +16,11 @@ O documento diverge: Entregas indica 01/11/2026; Cronograma, até 02/11/2026. Co
 
 Controller → serviço transacional somente leitura → repository Spring Data JPA. DTOs não expõem entidades/proxies. Área carregada por EntityGraph N:1, sem coleção com paginação e sem open-in-view.
 
-Ver [contrato esperado pelo Java](docs/contrato.md) para comparação campo a campo com o contrato **já publicado** em `Nexo-Challenge/s1-database/docs/entidades-mvp.md`, comprimentos, nulabilidade, PK/FK/UNIQUE, IDs manuais, erros e pendências. A cópia local [entidades-mvp.md](docs/entidades-mvp.md) é anterior e não substitui o remoto. Nenhum documento de Kenji foi alterado.
+Ver [contrato esperado pelo Java](docs/contrato.md) para comparação campo a campo com o contrato **já publicado** em `Nexo-Challenge/s1-database/docs/entidades-mvp.md`, comprimentos, nulabilidade, PK/FK/UNIQUE, IDs gerados por IDENTITY, erros e pendências. A cópia local [entidades-mvp.md](docs/entidades-mvp.md) é anterior e não substitui o remoto. Nenhum documento de Kenji foi alterado.
 
-A FK de área adota literalmente `areaAplicacaoId` conforme orientação do solicitante, em vez do nome antes inferido `area_aplicacao_id`. A estratégia física padrão preserva esse nome sem aspas; teste SQL H2 confirma `AREAAPLICACAOID`. Falta comprovação em DDL Oracle. `aplicacao_id`, `impacto_id` e `fonte_url` seguem o texto remoto.
+`AreaAplicacao`, `AplicacaoNuclear` e `ImpactoSocial` usam `@GeneratedValue(strategy = GenerationType.IDENTITY)`, conforme acordo com Kenji relatado pelo solicitante (`GENERATED ... AS IDENTITY`). Não se presume `ALWAYS` ou `BY DEFAULT`, sequence, schema ou novos tipos SQL. A associação `AplicacaoImpacto` mantém `@EmbeddedId`/`@MapsId`, sem `@GeneratedValue`. **O DDL Oracle não foi verificado.**
+
+A FK de área adota `area_aplicacao_id` com underline conforme o diagrama relacional e o DDL do banco Oracle. `aplicacao_id`, `impacto_id` e `fonte_url` seguem o padrão snake_case. Os campos `titulo`, `resumo` e `descricao` de `AplicacaoNuclear`, `titulo` de `ImpactoSocial` e `explicacao` de `AplicacaoImpacto` são configurados como `nullable = false` nas entidades e validados via Bean Validation (`@NotBlank`) na entrada da API para evitar nulos ou strings vazias no Oracle.
 
 ## Testes e compilação seguros
 
@@ -27,21 +29,20 @@ POM: Java release 21 e Spring Boot 4.1.2, sem atualização de versões. Execuç
 No terminal Windows, dentro do repositório (em Git Bash, prefixar com `cmd.exe /c`):
 
 ```bat
-mvnw.cmd -o -Dtest=ModelContractTest,AplicacaoImpactoIdTest,AplicacaoConsultaTest,AplicacaoConsultaServiceTest test
 mvnw.cmd -o test
 mvnw.cmd -o compile
 ```
 
 O modo offline requer dependências previamente disponíveis. Testes de contexto, inclusive `NexoApiApplicationTests`, herdam `IsolatedDatabaseTest`: perfil `test`, URL exclusiva `jdbc:h2:mem:nexo_test_<UUID>`, driver/dialeto H2 e credenciais sintéticas definidos por propriedades dinâmicas, sem interpolar variáveis externas. `create-drop` aparece somente nesse código de teste. Não forneça overrides externos de pool, scripts ou migração. Os testes não abrem porta HTTP: usam MockMvc e dados sintéticos com rollback.
 
-Resultado real da suíte após alinhamento do nome físico:
+Resultado real da suíte após alinhamento de DDL e validações:
 
 ```text
-Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 59, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-Cobertura: models/chave composta preservados, filtro Query Method real, ordenação/paginação, limites 1/100 e inválidos, DTO com área, 400/404 estruturados, rejeição de POST, falha de banco propagada, DTO após transação e coluna SQL literal. Isso não comprova dialeto/constraints/credenciais/procedures Oracle nem carga acadêmica.
+Cobertura: ciclo completo CRUD (POST, GET paginado/id, PUT, DELETE), cabeçalho Location, models/chave composta preservados, geração de IDs por IDENTITY, filtro Query Method real, paginação/ordenação estável por id ASC, validações Bean Validation (400 com campos detalhados), tratamento de integridade referencial sem cascata (409 Conflict), recursos inexistentes (404 Not Found), DTOs sem expor entidades e isolamento completo sem tocar em variáveis Oracle reais.
 
 `mvnw.cmd -o package` também foi tentado: compilou e passou os testes, mas falhou no `spring-boot:repackage` por dependências do plugin não resolvíveis no cache offline (por exemplo `spring-boot-buildpack-platform:4.1.2`). Um JAR simples foi gerado, mas **não há JAR executável verificado**. Não foram alterados cache, versões ou repositórios para contornar o bloqueio. Para distribuir, resolver dependências em ambiente autorizado e repetir `package`. Há avisos do JDK 24 sobre Unsafe/Mockito/Byte Buddy e aviso de dialeto H2 explícito; não foram ocultados.
 
@@ -66,23 +67,53 @@ java -jar target/nexo-api-0.0.1-SNAPSHOT.jar --spring.profiles.active=oracle
 
 Sem perfil/configuração/dados aprovados, não esperar demonstração funcional contra banco real; a base não cria tabelas nem popula H2 automaticamente.
 
-## Consultas HTTP
+## Endpoints HTTP
 
-Para instância autorizada já iniciada, exemplos de requisições (não executados contra Oracle):
+Exemplos de requisições suportadas pela API:
 
 ```http
+POST /api/aplicacoes
+Content-Type: application/json
+
+{
+  "areaAplicacaoId": 1,
+  "titulo": "Medicina Nuclear e Diagnóstico",
+  "resumo": "Uso de radiofármacos para diagnósticos precisos e precoces.",
+  "descricao": "Detalhamento das técnicas de cintilografia e PET scan aplicadas ao diagnóstico oncológico e cardiológico."
+}
+
 GET /api/aplicacoes?page=0&size=20
 GET /api/aplicacoes?titulo=nuclear&page=0&size=10
-GET /api/aplicacoes/10
+GET /api/aplicacoes/1
+
+PUT /api/aplicacoes/1
+Content-Type: application/json
+
+{
+  "areaAplicacaoId": 1,
+  "titulo": "Medicina Nuclear Avançada",
+  "resumo": "Aplicações terapêuticas e diagnósticas atualizadas.",
+  "descricao": "Descrição expandida de terapias com radioisótopos."
+}
+
+DELETE /api/aplicacoes/1
+
+GET /api/areas?page=0&size=20
 ```
 
-Ordenação fixa `id ASC`; page ≥ 0; size 1..100. Filtro opcional por trecho ignorando caixa; vazio lista tudo. DTO: `id`, `titulo`, `resumo`, `descricao`, `area {id, nome, descricao}`. Resposta paginada: `content`, `page`, `size`, `totalElements`, `totalPages`. Impactos não entram nesta resposta inicial. Ausência: 404; parâmetros inválidos: 400, com ProblemDetail.
+- `POST /api/aplicacoes`: Retorna HTTP 201 Created com cabeçalho `Location` apontando para o recurso criado e corpo `AplicacaoResponse`.
+- `GET /api/aplicacoes`: Listagem paginada (`page >= 0`, `size 1..100`), ordenada por `id ASC`, com filtro opcional por `titulo` (case-insensitive).
+- `GET /api/aplicacoes/{id}`: Retorna HTTP 200 com DTO ou 404 Not Found se inexistente.
+- `PUT /api/aplicacoes/{id}`: Atualiza os dados da aplicação existente, retornando HTTP 200 ou 404.
+- `DELETE /api/aplicacoes/{id}`: Exclui a aplicação se não possuir vínculos de impacto (retorna 204 No Content). Se houver vínculos com impactos sociais, retorna HTTP 409 Conflict protegendo a integridade referencial.
+- `GET /api/areas`: Listagem paginada de áreas temáticas disponíveis.
+- Respostas de erro seguem RFC 7807 (`ProblemDetail`): 400 Bad Request com lista estruturada de campos (`errors: [{campo, mensagem}]`), 404 Not Found e 409 Conflict.
 
 ## Pendências de entrega
 
-- CRUD JPA completo, validações de escrita, exceções correspondentes e Swagger/OpenAPI.
+- Configuração e anotações do Swagger/OpenAPI (pronto para ser implementado a seguir).
 - Procedures INSERT/UPDATE/DELETE por tabela, functions TABLE e chamadas via API, com **10 registros por tabela**, conforme PDF informado. O contrato remoto ainda menciona cinco: divergência sinalizada, não alterada.
-- Validar Oracle em ambiente autorizado e estratégia de geração dos IDs; não há sequence presumida.
+- Validar Oracle em ambiente autorizado, inclusive o DDL para a estratégia IDENTITY acordada segundo o solicitante; não há sequence presumida.
 - Alinhar a PoC .NET, cujo principal remoto também é `AplicacaoNuclear`, sem mudar domínio por suposição.
 - Revisão de autenticação/autorização antes de exposição pública; esta etapa não implementa segurança de produção.
 
