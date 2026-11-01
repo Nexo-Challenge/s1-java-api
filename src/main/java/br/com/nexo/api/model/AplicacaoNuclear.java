@@ -3,31 +3,34 @@ package br.com.nexo.api.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/** IDs atribuídos explicitamente até o acordo sobre a estratégia de geração no banco. */
+/** ID gerado pelo banco com IDENTITY, conforme acordo relatado pelo solicitante. */
 @Entity
 @Table(name = "TB_APLICACAO_NUCLEAR")
 public class AplicacaoNuclear {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "areaAplicacaoId", nullable = false)
+    @JoinColumn(name = "area_aplicacao_id", nullable = false)
     private AreaAplicacao areaAplicacao;
 
-    @Column(name = "titulo", length = 150)
+    @Column(name = "titulo", length = 150, nullable = false)
     private String titulo;
 
-    @Column(name = "resumo", length = 500)
+    @Column(name = "resumo", length = 500, nullable = false)
     private String resumo;
 
-    @Column(name = "descricao", length = 4000)
+    @Column(name = "descricao", length = 4000, nullable = false)
     private String descricao;
 
     public AplicacaoNuclear() {

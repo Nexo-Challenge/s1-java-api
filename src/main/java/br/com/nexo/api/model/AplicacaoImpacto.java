@@ -31,7 +31,7 @@ public class AplicacaoImpacto {
     @JoinColumn(name = "impacto_id", nullable = false)
     private ImpactoSocial impacto;
 
-    @Column(name = "explicacao", length = 2000)
+    @Column(name = "explicacao", length = 2000, nullable = false)
     private String explicacao;
 
     @Column(name = "fonte_url", length = 500)

@@ -6,8 +6,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 
-/** Expõe somente leituras; carrega apenas a área N:1, nunca coleções. */
+/** Expõe operações de persistência; carrega apenas a área N:1, nunca coleções. */
 public interface AplicacaoNuclearRepository extends Repository<AplicacaoNuclear, Long> {
+    void delete(AplicacaoNuclear aplicacao);
+    void flush();
+    AplicacaoNuclear saveAndFlush(AplicacaoNuclear aplicacao);
+
     @EntityGraph(attributePaths = "areaAplicacao")
     Page<AplicacaoNuclear> findAll(Pageable pageable);
     @EntityGraph(attributePaths = "areaAplicacao")

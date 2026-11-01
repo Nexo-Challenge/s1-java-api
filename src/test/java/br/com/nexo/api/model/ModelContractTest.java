@@ -3,6 +3,7 @@ package br.com.nexo.api.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.junit.jupiter.api.Test;
@@ -16,36 +17,36 @@ import static org.junit.jupiter.api.Assertions.*;
 class ModelContractTest {
 
     @Test
-    void areaHasAssignedIdAndContractColumns() throws Exception {
+    void areaTemIdentityEColunasDoContrato() throws Exception {
         Class<?> type = entity("AreaAplicacao", "TB_AREA_APLICACAO");
-        assignedId(type);
+        idGerado(type);
         column(type, "nome", "nome", 100, false, true);
         column(type, "descricao", "descricao", 1000, true, false);
         beanProperties(type);
     }
 
     @Test
-    void applicationHasRequiredAreaWithoutCascadeAndOptionalText() throws Exception {
+    void aplicacaoTemAreaObrigatoriaSemCascataECamposObrigatorios() throws Exception {
         Class<?> type = entity("AplicacaoNuclear", "TB_APLICACAO_NUCLEAR");
-        assignedId(type);
-        column(type, "titulo", "titulo", 150, true, false);
-        column(type, "resumo", "resumo", 500, true, false);
-        column(type, "descricao", "descricao", 4000, true, false);
-        relationship(type, "areaAplicacao", AreaAplicacao.class, "areaAplicacaoId");
+        idGerado(type);
+        column(type, "titulo", "titulo", 150, false, false);
+        column(type, "resumo", "resumo", 500, false, false);
+        column(type, "descricao", "descricao", 4000, false, false);
+        relationship(type, "areaAplicacao", AreaAplicacao.class, "area_aplicacao_id");
         beanProperties(type);
     }
 
     @Test
-    void impactHasUniqueButOptionalTitle() throws Exception {
+    void impactoTemTituloObrigatorioEUnico() throws Exception {
         Class<?> type = entity("ImpactoSocial", "TB_IMPACTO_SOCIAL");
-        assignedId(type);
-        column(type, "titulo", "titulo", 150, true, true);
+        idGerado(type);
+        column(type, "titulo", "titulo", 150, false, true);
         column(type, "descricao", "descricao", 1000, true, false);
         beanProperties(type);
     }
 
     @Test
-    void associationUsesCompositeIdentityAndTwoRequiredParentsWithoutCascade() throws Exception {
+    void associacaoUsaIdentidadeCompostaEDoisPaisSemCascata() throws Exception {
         Class<?> type = entity("AplicacaoImpacto", "TB_APLICACAO_IMPACTO");
         Field id = type.getDeclaredField("id");
         assertEquals(AplicacaoImpactoId.class, id.getType());
@@ -57,7 +58,7 @@ class ModelContractTest {
                 .getAnnotation(jakarta.persistence.MapsId.class).value());
         assertEquals("impactoId", type.getDeclaredField("impacto")
                 .getAnnotation(jakarta.persistence.MapsId.class).value());
-        column(type, "explicacao", "explicacao", 2000, true, false);
+        column(type, "explicacao", "explicacao", 2000, false, false);
         column(type, "fonteUrl", "fonte_url", 500, true, false);
         beanProperties(type);
     }
@@ -85,11 +86,14 @@ class ModelContractTest {
         return type;
     }
 
-    private static void assignedId(Class<?> type) throws Exception {
+    private static void idGerado(Class<?> type) throws Exception {
         Field id = type.getDeclaredField("id");
         assertEquals(Long.class, id.getType());
         assertNotNull(id.getAnnotation(Id.class));
-        assertNull(id.getAnnotation(GeneratedValue.class));
+        var geracao = id.getAnnotation(GeneratedValue.class);
+        assertNotNull(geracao);
+        assertEquals(GenerationType.IDENTITY, geracao.strategy());
+        assertEquals("", geracao.generator(), "Não presumir sequence ou gerador nomeado");
         assertEquals("id", id.getAnnotation(Column.class).name());
         Object entity = type.getConstructor().newInstance();
         assertNull(type.getMethod("getId").invoke(entity));
