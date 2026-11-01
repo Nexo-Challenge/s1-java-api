@@ -20,7 +20,7 @@ Ver [contrato esperado pelo Java](docs/contrato.md) para comparação campo a ca
 
 `AreaAplicacao`, `AplicacaoNuclear` e `ImpactoSocial` usam `@GeneratedValue(strategy = GenerationType.IDENTITY)`, conforme acordo com Kenji relatado pelo solicitante (`GENERATED ... AS IDENTITY`). Não se presume `ALWAYS` ou `BY DEFAULT`, sequence, schema ou novos tipos SQL. A associação `AplicacaoImpacto` mantém `@EmbeddedId`/`@MapsId`, sem `@GeneratedValue`. **O DDL Oracle não foi verificado.**
 
-A FK de área adota literalmente `areaAplicacaoId` conforme orientação do solicitante, em vez do nome antes inferido `area_aplicacao_id`. A estratégia física padrão preserva esse nome sem aspas; teste SQL H2 confirma `AREAAPLICACAOID`. Falta comprovação em DDL Oracle. `aplicacao_id`, `impacto_id` e `fonte_url` seguem o texto remoto.
+A FK de área adota `area_aplicacao_id` com underline conforme o diagrama relacional e o DDL do banco Oracle. `aplicacao_id`, `impacto_id` e `fonte_url` seguem o padrão snake_case. Os campos `titulo`, `resumo` e `descricao` de `AplicacaoNuclear`, `titulo` de `ImpactoSocial` e `explicacao` de `AplicacaoImpacto` são configurados como `nullable = false` nas entidades e validados via Bean Validation (`@NotBlank`) na entrada da API para evitar nulos ou strings vazias no Oracle.
 
 ## Testes e compilação seguros
 
@@ -29,17 +29,16 @@ POM: Java release 21 e Spring Boot 4.1.2, sem atualização de versões. Execuç
 No terminal Windows, dentro do repositório (em Git Bash, prefixar com `cmd.exe /c`):
 
 ```bat
-mvnw.cmd -o -Dtest=ModelContractTest,AplicacaoImpactoIdTest,IdentidadePersistenciaTest,AplicacaoConsultaTest,AplicacaoConsultaServiceTest test
 mvnw.cmd -o test
 mvnw.cmd -o compile
 ```
 
 O modo offline requer dependências previamente disponíveis. Testes de contexto, inclusive `NexoApiApplicationTests`, herdam `IsolatedDatabaseTest`: perfil `test`, URL exclusiva `jdbc:h2:mem:nexo_test_<UUID>`, driver/dialeto H2 e credenciais sintéticas definidos por propriedades dinâmicas, sem interpolar variáveis externas. `create-drop` aparece somente nesse código de teste. Não forneça overrides externos de pool, scripts ou migração. Os testes não abrem porta HTTP: usam MockMvc e dados sintéticos com rollback.
 
-Resultado real da suíte após adoção de IDENTITY:
+Resultado real da suíte após alinhamento de DDL e validações:
 
 ```text
-Tests run: 57, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 59, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 

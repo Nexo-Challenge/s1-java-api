@@ -53,16 +53,18 @@ class AplicacaoCrudTest extends IsolatedDatabaseTest {
         });
     }
 
-    @Test void substituiPreservandoIdentidadeELimpaOpcionaisOmitidos() throws Exception {
+    @Test void substituiPreservandoIdentidadeEAtualizaCampos() throws Exception {
         String location = criar();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(location)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(corpo("Título atualizado").replace("}", ",\"resumo\":\"Resumo\"}")))
+                .content(corpo("Título atualizado", "Resumo atualizado", "Descrição atualizada")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.titulo").value("Título atualizado"));
-        mvc.perform(get(location)).andExpect(status().isOk()).andExpect(jsonPath("$.resumo").value("Resumo"));
+        mvc.perform(get(location)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.resumo").value("Resumo atualizado"))
+            .andExpect(jsonPath("$.descricao").value("Descrição atualizada"));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(location)
-                .contentType(MediaType.APPLICATION_JSON).content(corpo("Substituído")))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.resumo").isEmpty());
+                .contentType(MediaType.APPLICATION_JSON).content(corpo("Substituído", "Novo resumo", "Nova descrição")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.titulo").value("Substituído"));
         mvc.perform(get(location)).andExpect(status().isOk()).andExpect(jsonPath("$.titulo").value("Substituído"));
     }
 
@@ -80,20 +82,27 @@ class AplicacaoCrudTest extends IsolatedDatabaseTest {
             .andExpect(status().isNotFound());
     }
 
-    @Test void rejeitaTituloEmBrancoComErroDeCampo() throws Exception {
-        mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON).content(corpo("   ")))
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"titulo,Título é obrigatório e não pode estar em branco.", "resumo,Resumo é obrigatório e não pode estar em branco.", "descricao,Descrição é obrigatória e não pode estar em branco."})
+    void rejeitaCamposObrigatoriosEmBranco(String campo, String mensagemEsperada) throws Exception {
+        String t = campo.equals("titulo") ? "   " : "Título válido";
+        String r = campo.equals("resumo") ? "   " : "Resumo válido";
+        String d = campo.equals("descricao") ? "   " : "Descrição válida";
+        mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON).content(corpo(t, r, d)))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
-            .andExpect(jsonPath("$.errors[0].campo").value("titulo"))
-            .andExpect(jsonPath("$.errors[0].mensagem").value("Título é obrigatório e não pode estar em branco."));
+            .andExpect(jsonPath("$.errors[0].campo").value(campo))
+            .andExpect(jsonPath("$.errors[0].mensagem").value(mensagemEsperada));
     }
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"titulo,150", "resumo,500", "descricao,4000"})
     void validaLimiteExatoEExcedido(String campo, int limite) throws Exception {
         for (int tamanho : new int[]{limite, limite + 1}) {
-            String payload = campo.equals("titulo") ? corpo("x".repeat(tamanho))
-                : corpo("Teste").replace("}", ",\"" + campo + "\":\"" + "x".repeat(tamanho) + "\"}");
+            String t = campo.equals("titulo") ? "x".repeat(tamanho) : "Título válido";
+            String r = campo.equals("resumo") ? "x".repeat(tamanho) : "Resumo válido";
+            String d = campo.equals("descricao") ? "x".repeat(tamanho) : "Descrição válida";
+            String payload = corpo(t, r, d);
             var resultado = mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON).content(payload));
             if (tamanho == limite) resultado.andExpect(status().isCreated());
             else resultado.andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].campo").value(campo));
@@ -104,7 +113,7 @@ class AplicacaoCrudTest extends IsolatedDatabaseTest {
     @org.junit.jupiter.params.provider.ValueSource(strings = {"null", "0", "-1"})
     void rejeitaAreaNulaOuNaoPositiva(String area) throws Exception {
         mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"titulo\":\"Teste\",\"areaAplicacaoId\":" + area + "}"))
+                .content("{\"titulo\":\"Teste\",\"resumo\":\"Resumo\",\"descricao\":\"Descricao\",\"areaAplicacaoId\":" + area + "}"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].campo").value("areaAplicacaoId"));
     }
 
@@ -191,7 +200,7 @@ class AplicacaoCrudTest extends IsolatedDatabaseTest {
     }
 
     @Test void areaAusenteRetorna404SemCriarOuAlterarAplicacao() throws Exception {
-        String payload = "{\"areaAplicacaoId\":" + Long.MAX_VALUE + ",\"titulo\":\"Teste\"}";
+        String payload = "{\"areaAplicacaoId\":" + Long.MAX_VALUE + ",\"titulo\":\"Teste\",\"resumo\":\"Resumo\",\"descricao\":\"Descricao\"}";
         mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON).content(payload))
             .andExpect(status().isNotFound()).andExpect(jsonPath("$.detail").value("Área de aplicação não encontrada."));
         mvc.perform(get("/api/aplicacoes")).andExpect(jsonPath("$.totalElements").value(0));
@@ -205,17 +214,22 @@ class AplicacaoCrudTest extends IsolatedDatabaseTest {
 
     @Test void rejeitaTiposIncompativeisNoCorpo() throws Exception {
         for (String payload : new String[]{
-                "{\"areaAplicacaoId\":true,\"titulo\":\"Teste\"}",
-                "{\"areaAplicacaoId\":[1],\"titulo\":\"Teste\"}",
-                "{\"areaAplicacaoId\":{\"id\":1},\"titulo\":\"Teste\"}",
-                "{\"areaAplicacaoId\":" + areaId + ",\"titulo\":[\"Teste\"]}"}) {
+                "{\"areaAplicacaoId\":true,\"titulo\":\"Teste\",\"resumo\":\"Resumo\",\"descricao\":\"Descricao\"}",
+                "{\"areaAplicacaoId\":[1],\"titulo\":\"Teste\",\"resumo\":\"Resumo\",\"descricao\":\"Descricao\"}",
+                "{\"areaAplicacaoId\":{\"id\":1},\"titulo\":\"Teste\",\"resumo\":\"Resumo\",\"descricao\":\"Descricao\"}",
+                "{\"areaAplicacaoId\":" + areaId + ",\"titulo\":[\"Teste\"],\"resumo\":\"Resumo\",\"descricao\":\"Descricao\"}"}
+        ) {
             mvc.perform(post("/api/aplicacoes").contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest());
         }
     }
 
     String corpo(String titulo) {
-        return "{\"areaAplicacaoId\":" + areaId + ",\"titulo\":\"" + titulo + "\"}";
+        return corpo(titulo, "Resumo sintético", "Descrição sintética");
+    }
+
+    String corpo(String titulo, String resumo, String descricao) {
+        return "{\"areaAplicacaoId\":" + areaId + ",\"titulo\":\"" + titulo + "\",\"resumo\":\"" + resumo + "\",\"descricao\":\"" + descricao + "\"}";
     }
 
     String criar() throws Exception {

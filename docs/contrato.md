@@ -15,20 +15,26 @@ A cópia local `entidades-mvp.md` é anterior ao remoto e não deve prevalecer s
 | AreaAplicacao / TB_AREA_APLICACAO | id → id | Long; NUMBER no remoto | Não | PK | IDENTITY conforme acordo relatado; precisão/escala e DDL Oracle a verificar |
 | AreaAplicacao / TB_AREA_APLICACAO | nome → nome | String / VARCHAR2(100) | Não | UNIQUE | Alinhado: nome obrigatório e exclusivo |
 | AreaAplicacao / TB_AREA_APLICACAO | descricao → descricao | String / VARCHAR2(1000) | Sim | Nenhuma | Tamanho alinhado; nulabilidade final confirmar |
-| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | id → id | Long; tipo físico não detalhado para esta linha no remoto | Não | PK | IDENTITY conforme acordo relatado; tipo/precisão e DDL Oracle a verificar |
-| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | areaAplicacao → areaAplicacaoId | Long da área | Não | FK → TB_AREA_APLICACAO.id; não UNIQUE | Remoto chama o atributo areaAplicacaoId, sem fixar a coluna física. **Por orientação explícita do solicitante, Java adota agora areaAplicacaoId literalmente**, sem alegar comprovação de DDL |
-| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | titulo → titulo | String / VARCHAR2(150) | Sim | Não UNIQUE | Nome/tamanho alinhados; remoto atual não exige NOT NULL |
-| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | resumo → resumo | String / VARCHAR2(500) | Sim | Nenhuma | Nome/tamanho alinhados; remoto atual não exige NOT NULL |
-| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | descricao → descricao | String / VARCHAR2(4000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
-| ImpactoSocial / TB_IMPACTO_SOCIAL | id → id | Long; tipo físico não detalhado para esta linha no remoto | Não | PK | IDENTITY conforme acordo relatado; tipo/precisão e DDL Oracle a verificar |
-| ImpactoSocial / TB_IMPACTO_SOCIAL | titulo → titulo | String / VARCHAR2(150) | Sim | UNIQUE | Nome/tamanho/unicidade alinhados; NOT NULL não explicitado no remoto atual |
-| ImpactoSocial / TB_IMPACTO_SOCIAL | descricao → descricao | String / VARCHAR2(1000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
-| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.aplicacaoId; aplicacao → aplicacao_id | Long; tipo SQL compatível com PK referenciada, a confirmar | Não | Parte da PK e FK → TB_APLICACAO_NUCLEAR.id | Nome físico explícito no remoto; alinhado |
-| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.impactoId; impacto → impacto_id | Long; tipo SQL compatível com PK referenciada, a confirmar | Não | Parte da PK e FK → TB_IMPACTO_SOCIAL.id | Nome físico explícito no remoto; alinhado |
-| AplicacaoImpacto / TB_APLICACAO_IMPACTO | explicacao → explicacao | String / VARCHAR2(2000) | Sim | Nenhuma | Nome/tamanho alinhados; nulabilidade final confirmar |
-| AplicacaoImpacto / TB_APLICACAO_IMPACTO | fonteUrl → fonte_url | String / VARCHAR2(500) | Sim | Nenhuma | Remoto usa fonteUrl no dicionário e fonte_url na descrição da associação; mapeamento alinhado |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | id → id | Long; tipo físico NUMBER(10) no DDL | Não | PK | IDENTITY conforme acordo relatado (ou sequence via trigger/identity no Oracle) |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | areaAplicacao → area_aplicacao_id | Long da área | Não | FK → TB_AREA_APLICACAO.id; não UNIQUE | Nome físico oficial com underline (`area_aplicacao_id`), alinhado ao diagrama relacional e DDL Oracle |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | titulo → titulo | String / VARCHAR2(150) | Não | Não UNIQUE | Nome, tamanho e obrigatoriedade alinhados: NOT NULL no banco e `@NotBlank` / `@Size(max=150)` no Java |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | resumo → resumo | String / VARCHAR2(500) | Não | Nenhuma | Nome, tamanho e obrigatoriedade alinhados: NOT NULL no banco e `@NotBlank` / `@Size(max=500)` no Java |
+| AplicacaoNuclear / TB_APLICACAO_NUCLEAR | descricao → descricao | String / VARCHAR2(4000) | Não | Nenhuma | Nome, tamanho e obrigatoriedade alinhados: NOT NULL no banco e `@NotBlank` / `@Size(max=4000)` no Java |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | id → id | Long; tipo físico NUMBER(10) no DDL | Não | PK | IDENTITY conforme acordo relatado |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | titulo → titulo | String / VARCHAR2(150) | Não | UNIQUE | Nome, tamanho, unicidade e obrigatoriedade alinhados: NOT NULL UNIQUE no banco e `@Column(nullable=false, unique=true)` no Java |
+| ImpactoSocial / TB_IMPACTO_SOCIAL | descricao → descricao | String / VARCHAR2(1000) | Sim | Nenhuma | Nome/tamanho alinhados; opcional nos dois lados |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.aplicacaoId; aplicacao → aplicacao_id | Long; NUMBER(10) no DDL | Não | Parte da PK e FK → TB_APLICACAO_NUCLEAR.id | Nome físico explícito com underline; alinhado |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | id.impactoId; impacto → impacto_id | Long; NUMBER(10) no DDL | Não | Parte da PK e FK → TB_IMPACTO_SOCIAL.id | Nome físico explícito com underline; alinhado |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | explicacao → explicacao | String / VARCHAR2(2000) | Não | Nenhuma | Nome, tamanho e obrigatoriedade alinhados: NOT NULL no banco e `@Column(name="explicacao", length=2000, nullable=false)` no Java |
+| AplicacaoImpacto / TB_APLICACAO_IMPACTO | fonteUrl → fonte_url | String / VARCHAR2(500) | Sim | Nenhuma | Nome físico com underline; opcional nos dois lados |
 
-O nome area_aplicacao_id da implementação Java anterior era inferido e não consta no contrato remoto. Por orientação explícita do solicitante, foi substituído por areaAplicacaoId, grafia literal do atributo publicado. Como o remoto não contém DDL, essa adoção não é confirmação de coluna física Oracle. A estratégia PhysicalNamingStrategyStandardImpl preserva nomes explícitos, sem quoted identifiers: no teste SQL H2 executado a coluna observada foi AREAAPLICACAOID, não AREA_APLICACAO_ID. aplicacao_id, impacto_id e fonte_url permanecem conforme nomes físicos expressos no texto remoto. Nomes físicos de constraints, schema/proprietário, precisão de NUMBER e semântica BYTE/CHAR de VARCHAR2 também não foram definidos. Não inventar essas decisões.
+O nome oficial da chave estrangeira física é `area_aplicacao_id` (com underline), alinhado ao diagrama relacional e ao DDL de `s1-database`. A chave estrangeira e colunas de texto obrigatórias possuem `@Column(nullable = false)` nas entidades JPA.
+
+### Tratamento de Nulos no Backend
+Para garantir que nenhuma tentativa de persistir valor nulo atinja o banco e dispare falhas de constraint (`ORA-01400` / `DataIntegrityViolationException`), o backend adota a seguinte disciplina:
+- **Validação de Entrada (`AplicacaoRequest`)**: Os atributos obrigatórios (`areaAplicacaoId`, `titulo`, `resumo`, `descricao`) são anotados com `@NotNull`, `@Positive` e `@NotBlank`.
+- **Rejeição Precoce com HTTP 400 Bad Request**: Requisições com campos nulos, vazios ou compostos exclusivamente por espaços em branco são interceptadas na camada de validação e respondidas com HTTP 400 (RFC 9457 ProblemDetail) com a lista ordenada de campos inválidos (`errors: [{campo, mensagem}]`).
+- **Semântica Oracle de Strings Vazias**: Como o Oracle Database trata strings vazias (`''`) como `NULL`, a validação `@NotBlank` protege rigorosamente contra inserções inválidas em colunas `VARCHAR2(...) NOT NULL`.
 
 ## Identidade, relacionamentos e integridade
 
