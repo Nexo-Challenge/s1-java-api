@@ -38,11 +38,11 @@ O modo offline requer dependências previamente disponíveis. Testes de contexto
 Resultado real da suíte após alinhamento de DDL e validações:
 
 ```text
-Tests run: 59, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 61, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-Cobertura: ciclo completo CRUD (POST, GET paginado/id, PUT, DELETE), cabeçalho Location, models/chave composta preservados, geração de IDs por IDENTITY, filtro Query Method real, paginação/ordenação estável por id ASC, validações Bean Validation (400 com campos detalhados), tratamento de integridade referencial sem cascata (409 Conflict), recursos inexistentes (404 Not Found), DTOs sem expor entidades e isolamento completo sem tocar em variáveis Oracle reais.
+Cobertura: ciclo completo CRUD (POST, GET paginado/id, PUT, DELETE), cabeçalho Location, documentação Swagger/OpenAPI interativa e especificação JSON validadas, models/chave composta preservados, geração de IDs por IDENTITY, filtro Query Method real, paginação/ordenação estável por id ASC, validações Bean Validation (400 com campos detalhados), tratamento de integridade referencial sem cascata (409 Conflict), recursos inexistentes (404 Not Found), DTOs sem expor entidades e isolamento completo sem tocar em variáveis Oracle reais.
 
 `mvnw.cmd -o package` também foi tentado: compilou e passou os testes, mas falhou no `spring-boot:repackage` por dependências do plugin não resolvíveis no cache offline (por exemplo `spring-boot-buildpack-platform:4.1.2`). Um JAR simples foi gerado, mas **não há JAR executável verificado**. Não foram alterados cache, versões ou repositórios para contornar o bloqueio. Para distribuir, resolver dependências em ambiente autorizado e repetir `package`. Há avisos do JDK 24 sobre Unsafe/Mockito/Byte Buddy e aviso de dialeto H2 explícito; não foram ocultados.
 
@@ -109,10 +109,16 @@ GET /api/areas?page=0&size=20
 - `GET /api/areas`: Listagem paginada de áreas temáticas disponíveis.
 - Respostas de erro seguem RFC 7807 (`ProblemDetail`): 400 Bad Request com lista estruturada de campos (`errors: [{campo, mensagem}]`), 404 Not Found e 409 Conflict.
 
+## Documentação Interativa (Swagger / OpenAPI)
+
+Com a aplicação em execução, a documentação interativa e os testes dos endpoints estão disponíveis em:
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html` (ou `/swagger-ui/index.html`)
+- **Especificação OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
+
 ## Pendências de entrega
 
-- Configuração e anotações do Swagger/OpenAPI (pronto para ser implementado a seguir).
-- Procedures INSERT/UPDATE/DELETE por tabela, functions TABLE e chamadas via API, com **10 registros por tabela**, conforme PDF informado. O contrato remoto ainda menciona cinco: divergência sinalizada, não alterada.
+- Validar documentação Swagger em conjunto com o time e exportar JSON/YAML para os entregáveis FIAP.
+- Procedures INSERT/UPDATE/DELETE por tabela, functions TABLE e chamadas via API, com **10 registros por tabela**, conforme PDF informado.
 - Validar Oracle em ambiente autorizado, inclusive o DDL para a estratégia IDENTITY acordada segundo o solicitante; não há sequence presumida.
 - Alinhar a PoC .NET, cujo principal remoto também é `AplicacaoNuclear`, sem mudar domínio por suposição.
 - Revisão de autenticação/autorização antes de exposição pública; esta etapa não implementa segurança de produção.
