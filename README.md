@@ -2,10 +2,20 @@
 
 **FIAP — Sprint 1 — Java Advanced.** Challenge 2026, tecnologia nuclear / Marinha. Entregável acadêmico; reutilização no produto real exige acordo.
 
+## Integrantes do Grupo (Nexo)
+
+| Nome Completo | RM | Turma | Responsabilidade Principal |
+| :--- | :--- | :--- | :--- |
+| **Alisson Kawan Evangelista Silva** | **RM567598** | 2TDS | Responsável Técnico (Java e .NET) |
+| **Kenji** | **RM568156** | 2TDS | IoT e Banco de Dados |
+| **Erick Ramos** | **RM567837** | 2TDS | DevOps Tools & Cloud Computing |
+| **Eduardo Boni** | **RM567236** | 2TDS | Mobile Application Development |
+| **Marcos Vinicius de Jesus Almeida** | **RM567214** | 2TDS | Documentação e Qualidade de Software (QA) |
+
 ## Estado e responsáveis
 
 CRUD completo de `AplicacaoNuclear` e consultas de `AreaAplicacao` implementados e testados com H2 isolado: criação com cabeçalho Location, listagem paginada, busca por ID, filtro por título via Query Method, atualização total idempotente e exclusão com proteção de integridade referencial. **Nenhuma conexão Oracle foi testada.**
-Alisson responde por Java/.NET; Kenji pelo banco. O solicitante confirmou acordo com Kenji para IDs simples por IDENTITY; a revisão dos demais novos termos locais de integração está pendente. Nenhum nome completo ou RM é publicado aqui.
+Alisson responde por Java/.NET; Kenji por IoT e banco; Eduardo por mobile; Erick por DevOps; Marcos Vinicius por documentação e QA.
 
 ## Fonte e prazo
 
